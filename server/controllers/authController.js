@@ -10,11 +10,25 @@ module.exports.register = async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   try {
-    const results = await pool.query(
+    const [isUser] = await pool.query("SELECT * FROM users WHERE email = ?", [
+      email,
+    ]);
+
+    if (isUser.length > 0) {
+      console.log("Пользователь существует =>>>>>>", isUser[0].email);
+      return res.status(409).json({
+        success: false,
+        message: "Пользователь с таким email уже существует.",
+      });
+    }
+
+    const [results] = await pool.query(
       "INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
       [name, email, hashedPassword]
     );
-    // console.log(results);
+
+    console.log("Новый пользователь создан =>", results);
+
     res.status(201).json({
       success: true,
       name,
@@ -86,6 +100,26 @@ module.exports.getUsers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Не удалось получить данные. Попробуйте еще раз.",
+      error: err.message,
+    });
+  }
+};
+
+// Удаление пользователя
+module.exports.deleteUser = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const [results] = await pool.query("DELETE FROM users WHERE id = ?", [id]);
+
+    return res.json({
+      success: true,
+      message: `Пользователь c id ${id} удален`,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Не удалось удалить пользователя. Попробуйте еще раз.",
       error: err.message,
     });
   }
